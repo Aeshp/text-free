@@ -44,6 +44,7 @@
             <div class="flex-grow flex flex-col min-h-[300px]">
                 <label class="text-sm font-semibold text-gray-700 mb-2 flex justify-between">
                     <span>1. Paste Full Content Here</span>
+                    <span id="charCount" class="text-gray-600 font-normal">0 chars</span>
                 </label>
                 <textarea 
                     id="sourceText" 
@@ -104,7 +105,13 @@
         const sourceInput = document.getElementById('sourceText');
         const patternInput = document.getElementById('removePattern');
         const outputInput = document.getElementById('outputText');
+        const charCount = document.getElementById('charCount');
         const statusMsg = document.getElementById('statusMsg');
+
+        sourceInput.addEventListener('input', () => {
+            const len = sourceInput.value.length;
+            charCount.textContent = `${len.toLocaleString()} chars`;
+        });
 
 
         function clearPattern() {
