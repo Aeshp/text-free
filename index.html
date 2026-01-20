@@ -86,7 +86,6 @@
                     <button onclick="copyResult()" class="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded transition-colors border border-gray-600">
                         <i class="fa-regular fa-copy"></i> Copy
                     </button> 
-                    <!-- copy navigator is not added yet, just placeholder -->
                 </div>
             </div>
             
@@ -149,6 +148,26 @@
                 statusMsg.textContent = "Pattern not found";
                 statusMsg.className = "text-xs text-red-600 flex items-center mr-2 font-bold";
             }
+        }
+
+        function copyResult() {
+            const textToCopy = outputInput.value;
+            if (!textToCopy) return;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = statusMsg.textContent;
+                const originalClass = statusMsg.className;
+                
+                statusMsg.textContent = "Copied to clipboard!";
+                statusMsg.className = "text-xs text-blue-600 flex items-center mr-2 font-bold";
+
+                setTimeout(() => {
+                    statusMsg.textContent = originalText;
+                    statusMsg.className = originalClass;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
         }
 
     </script>
