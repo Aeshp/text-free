@@ -56,14 +56,26 @@
             </a>
             
             <div class="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
+                <!--
+                  [METRICS DISPLAY - HIDDEN]
+                  For developers who want to enable Firebase metrics:
+                  Replace this block with the following markup:
+                    <div class="hidden sm:flex items-center gap-3 bg-white px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">
+                        <div class="w-2 h-2 rounded-full bg-green-500 live-dot shrink-0"></div>
+                        <span class="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                            🔥 <span id="metricRemovals" class="text-blue-600 font-bold">...</span> removals
+                        </span>
+                        <span class="text-xs text-gray-300">|</span>
+                        <span class="text-xs font-semibold text-gray-600 whitespace-nowrap">
+                            ⚡ <span id="metricCharacters" class="text-blue-600 font-bold">...</span> processed
+                        </span>
+                    </div>
+                  Ensure Firebase is configured correctly. Metrics will automatically start displaying.
+                -->
                 <div class="hidden sm:flex items-center gap-3 bg-white px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">
-                    <div class="w-2 h-2 rounded-full bg-green-500 live-dot shrink-0"></div>
-                    <span class="text-xs font-semibold text-gray-600 whitespace-nowrap">
-                        🔥 <span id="metricRemovals" class="text-blue-600 font-bold">...</span> removals
-                    </span>
-                    <span class="text-xs text-gray-300">|</span>
-                    <span class="text-xs font-semibold text-gray-600 whitespace-nowrap">
-                        ⚡ <span id="metricCharacters" class="text-blue-600 font-bold">...</span> processed
+                    <span class="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                        ⚙️ Metrics system included
+                        <button id="metricsInfoBtn" class="text-gray-400 hover:text-gray-600 transition-colors" title="About metrics"><i class="fa-solid fa-circle-info"></i></button>
                     </span>
                 </div>
 
@@ -75,14 +87,26 @@
         </div>
     </header>
 
+    <!--
+      [MOBILE METRICS DISPLAY - HIDDEN]
+      For developers who want to enable Firebase metrics:
+      Replace this block with the following markup:
+        <div class="flex sm:hidden items-center justify-center gap-2 bg-white mx-3 mt-3 px-3 py-2 rounded-full border border-amber-200 shadow-sm">
+            <div class="w-1.5 h-1.5 rounded-full bg-green-500 live-dot shrink-0"></div>
+            <span class="text-[11px] font-semibold text-gray-600">
+                🔥 <span id="metricRemovalsMobile" class="text-blue-600 font-bold">...</span> removals
+            </span>
+            <span class="text-[11px] text-gray-300">|</span>
+            <span class="text-[11px] font-semibold text-gray-600">
+                ⚡ <span id="metricCharactersMobile" class="text-blue-600 font-bold">...</span> processed
+            </span>
+        </div>
+      Ensure Firebase is configured correctly. Metrics will automatically start displaying.
+    -->
     <div class="flex sm:hidden items-center justify-center gap-2 bg-white mx-3 mt-3 px-3 py-2 rounded-full border border-amber-200 shadow-sm">
-        <div class="w-1.5 h-1.5 rounded-full bg-green-500 live-dot shrink-0"></div>
-        <span class="text-[11px] font-semibold text-gray-600">
-            🔥 <span id="metricRemovalsMobile" class="text-blue-600 font-bold">...</span> removals
-        </span>
-        <span class="text-[11px] text-gray-300">|</span>
-        <span class="text-[11px] font-semibold text-gray-600">
-            ⚡ <span id="metricCharactersMobile" class="text-blue-600 font-bold">...</span> processed
+        <span class="text-[11px] font-semibold text-gray-600 flex items-center gap-2">
+            ⚙️ Metrics system included
+            <button id="metricsInfoBtnMobile" class="text-gray-400 hover:text-gray-600 transition-colors" title="About metrics"><i class="fa-solid fa-circle-info text-[11px]"></i></button>
         </span>
     </div>
 
@@ -156,6 +180,19 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        /*
+          Firebase Metrics System
+          For developers who want to enable Firebase metrics:
+
+          - Metrics run silently when Firebase config is provided (via env variables)
+          - If config values are placeholders, Firebase is safely disabled
+          - No errors will occur in local/dev environments
+
+          To enable metrics:
+          1. Provide real Firebase config (via Vercel env variables or replace placeholders)
+          2. Restore the metric spans in the HTML above (see [METRICS DISPLAY - HIDDEN] comments)
+          3. Metrics will automatically start displaying in real time
+        */
         const firebaseConfig = {
             apiKey: "__FIREBASE_API_KEY__",
             authDomain: "__FIREBASE_AUTH_DOMAIN__",
@@ -166,9 +203,18 @@
             measurementId: "__FIREBASE_MEASUREMENT_ID__"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const statsRef = doc(db, "stats", "global_metrics");
+        const isFirebaseConfigured =
+            firebaseConfig.apiKey &&
+            firebaseConfig.apiKey !== "__FIREBASE_API_KEY__";
+
+        let db = null;
+        let statsRef = null;
+
+        if (isFirebaseConfigured) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            statsRef = doc(db, "stats", "global_metrics");
+        }
 
         function formatCompact(num) {
             if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
@@ -176,23 +222,34 @@
             return num.toString();
         }
 
-        onSnapshot(statsRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const removals = (data.totalRemovals || 0).toLocaleString();
-                const characters = formatCompact(data.totalCharacters || 0);
-                document.getElementById('metricRemovals').innerText = removals;
-                document.getElementById('metricCharacters').innerText = characters;
-                document.getElementById('metricRemovalsMobile').innerText = removals;
-                document.getElementById('metricCharactersMobile').innerText = characters;
-            }
-        }, (error) => {
-            console.error("Snapshot error:", error);
-        });
+        // [METRICS LISTENER - ACTIVE]
+        // Firebase onSnapshot listener runs silently in background.
+        // To display metrics in UI, restore the metric spans (see HTML comments above).
+        if (isFirebaseConfigured && statsRef) {
+            onSnapshot(statsRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const removals = (data.totalRemovals || 0).toLocaleString();
+                    const characters = formatCompact(data.totalCharacters || 0);
+
+                    const elRemovals = document.getElementById('metricRemovals');
+                    const elCharacters = document.getElementById('metricCharacters');
+                    const elRemovalsMobile = document.getElementById('metricRemovalsMobile');
+                    const elCharactersMobile = document.getElementById('metricCharactersMobile');
+                    if (elRemovals) elRemovals.innerText = removals;
+                    if (elCharacters) elCharacters.innerText = characters;
+                    if (elRemovalsMobile) elRemovalsMobile.innerText = removals;
+                    if (elCharactersMobile) elCharactersMobile.innerText = characters;
+                }
+            }, (error) => {
+                console.error("Snapshot error:", error);
+            });
+        }
 
         let metricsLock = false;
 
         async function updateMetrics(charCount, removalCount) {
+            if (!isFirebaseConfigured || !db || !statsRef) return;
             if (metricsLock) return;
             metricsLock = true;
             try {
@@ -238,12 +295,19 @@
         const cleanBtn = document.querySelector('button[onclick="processText()"]');
 
         let nextAllowedTime = 0;
+        let countdownInterval = null;
 
         function startCountdown(ms) {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
             let seconds = Math.ceil(ms / 1000);
-            const interval = setInterval(() => {
+
+            countdownInterval = setInterval(() => {
                 if (seconds <= 0) {
-                    clearInterval(interval);
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
                     return;
                 }
                 statusMsg.textContent = `Counting in ${seconds}...`;
@@ -351,6 +415,34 @@
         window.clearPattern = clearPattern;
         window.processText = processText;
         window.copyResult = copyResult;
+
+        const infoBtn = document.getElementById("metricsInfoBtn");
+        const infoBtnMobile = document.getElementById("metricsInfoBtnMobile");
+        const infoBox = document.getElementById("metricsInfoBox");
+        const closeBtn = document.getElementById("closeMetricsInfo");
+
+        function showInfoBox() {
+            if (infoBox) infoBox.classList.remove("hidden");
+        }
+
+        if (infoBtn) infoBtn.onclick = showInfoBox;
+        if (infoBtnMobile) infoBtnMobile.onclick = showInfoBox;
+
+        if (closeBtn && infoBox) {
+            closeBtn.onclick = () => {
+                infoBox.classList.add("hidden");
+            };
+        }
     </script>
+
+    <div id="metricsInfoBox" class="hidden fixed bottom-4 right-4 max-w-xs bg-white border border-gray-200 shadow-lg rounded-lg p-4 text-xs text-gray-700 z-50">
+        <p>
+            This app includes a Firebase-based usage metrics system.
+
+            Metrics are not shown in this version. To enable them, update the UI in the GitHub repository where the implementation is already available.
+        </p>
+        <button id="closeMetricsInfo" class="mt-2 text-blue-600 text-xs underline">Close</button>
+    </div>
+
 </body>
 </html>
